@@ -47,11 +47,11 @@ int GetNumberOfJobs(int SubSeqLength, int JobSize)
 {
 	return SubSeqLength / JobSize;
 }
-void CreateFiles(FILE *files[])
+void CreateFiles(FILE **files)
 {
-	files[0] = fopen("arithmetic.txt","w");
-	files[1] = fopen("geometric.txt","w");
-	files[2] = fopen("differential.txt", "w");
+	files[0] = fopen("arithmetic.txt","w+");
+	files[1] = fopen("geometric.txt","w+");
+	files[2] = fopen("differential.txt", "w+");
 	if (files[0] == NULL || files[1] == NULL || files[2] == NULL)
 	{
 		printf("Error - CreateFiles Failed\n");
@@ -76,18 +76,18 @@ void DoCalculations(int* subSeqArray, InputParams *inputParams,FILE* files[])
 }
 int main(int argc, char* argv[])
 {
-	InputParams *inputParams = malloc(sizeof(inputParams));
-	int* subSeqArray;
-	FILE *files[3];
+	InputParams *inputParams = (InputParams*) malloc(sizeof(inputParams));
+	int *subSeqArray;
+	FILE **files = (FILE*)malloc(sizeof(FILE*) * 3);
 
 	if (inputParams == NULL)
 		return 1;
 
 	if (argc != 9)
 		return 1;
-	
+
+	subSeqArray = (int*) malloc(inputParams->SubSeqLength * sizeof(subSeqArray));
 	SetArgumentsInStructre(argv, inputParams);
-	subSeqArray = (int*) malloc(7*sizeof(int));
 	if (subSeqArray == NULL)
 		exit(1);
 	
