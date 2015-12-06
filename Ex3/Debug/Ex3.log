@@ -1,4 +1,4 @@
 ﻿  main.c
-c:\matan\eeos\ex3\introductiontooperatingsystems_ex3\ex3\main.c(81): warning C4047: 'initializing' : 'FILE **' differs in levels of indirection from 'FILE *'
+c:\matan\eeos\ex3\introductiontooperatingsystems_ex3\ex3\main.c(83): warning C4244: '=' : conversion from 'double' to 'int', possible loss of data
   LINK : C:\matan\eeOS\ex3\IntroductionToOperatingSystems_ex3\Debug\Ex3.exe not found or not built by the last incremental link; performing full link
   Ex3.vcxproj -> C:\matan\eeOS\ex3\IntroductionToOperatingSystems_ex3\Debug\Ex3.exe

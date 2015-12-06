@@ -5,6 +5,7 @@
 #include <math.h>
 #include <string.h>
 
+enum CALCULATION {ARITHMETIC,GEOMETRIC};
 
 typedef char* string; 
 typedef struct InputParams
@@ -14,11 +15,18 @@ typedef struct InputParams
 	int JobSize;
 	int SubSeqLength;
 	string FailurePeriod;
-	int A1;
+	int A;
 	int d;
 	int q;
 
 }InputParams;
+
+typedef struct SubSeqArray
+{
+	int Value;
+	int ThreadNumber;
+	int Time;
+}SubSeqArray;
 
 int CalcArithmeticProgressionForItemI(int a1,int n, int d)
 {
@@ -37,8 +45,11 @@ void SetArgumentsInStructre(char** argv, InputParams* inputParams)
 	inputParams->N = atoi(argv[2]);
 	inputParams->JobSize = atoi(argv[3]);
 	inputParams->SubSeqLength = atoi(argv[4]);
-	inputParams->FailurePeriod = argv[5];
-	inputParams->A1 = atoi(argv[6]);
+	inputParams->FailurePeriod = (string) malloc (strlen(argv[5])*sizeof(string));
+	if (inputParams->FailurePeriod == NULL)
+		exit(1);
+	inputParams->FailurePeriod = strcpy(inputParams->FailurePeriod, argv[5]);
+	inputParams->A = atoi(argv[6]);
 	inputParams->d = atoi(argv[7]);
 	inputParams->q = atoi(argv[8]);
 }
@@ -58,27 +69,82 @@ void CreateFiles(FILE **files)
 		exit(1);
 	}
 }
-void CalculateArithmetic(int* subSeqArray, InputParams *inputParams,FILE* file)
+void StartBuildingThread(SubSeqArray *subSeqArray, InputParams *inputParams, int startIndex, int threadNumber, enum CALCULATION type)
 {
-	printf("CalculateArithmetic\n");
+	int i;
+	for (i = 0; i < inputParams->JobSize; i++)
+	{
+		if (type == ARITHMETIC)
+		{
+			subSeqArray[threadNumber*inputParams->JobSize + i].Value = CalcArithmeticProgressionForItemI(inputParams->A, i + startIndex, inputParams->d);
+		}
+		else if (type == GEOMETRIC)
+		{
+			subSeqArray[threadNumber*inputParams->JobSize + i].Value = CalcGeometricProgressionForItemI(inputParams->A, i + startIndex, inputParams->q);
+
+		}
+	}
 }
 
-void CalculateGeometric(int* subSeqArray, InputParams *inputParams, FILE* file)
+void StartBuildingThreads(int numOfWorkers, int iterationNumber, InputParams *inputParams, SubSeqArray *subSeqArray,enum CALCULATION type)
+{
+	int subSeq = inputParams->SubSeqLength;
+	int jobSize = inputParams->JobSize;
+	int threadNumber;
+	int startIndex = iterationNumber*subSeq;
+	int stopIndex = (iterationNumber + 1)*subSeq;
+	//spliiting to thread
+	for (threadNumber = 0; threadNumber < subSeq/jobSize; threadNumber++)
+	{
+		StartBuildingThread(subSeqArray, inputParams, startIndex + (threadNumber*jobSize),threadNumber,type);
+	}
+}
+void StartCleaningThread(int i, SubSeqArray *subSeqArray,int subSeqLength,FILE *file)
+{
+	int j = 0;
+	int index;
+	for (j = 0; j < subSeqLength; j++)
+	{
+		index = i*subSeqLength + j;
+		printf("Index #%d = %d, calculated by thread %d @ %d\n", index, subSeqArray[j].Value, subSeqArray[j].ThreadNumber, subSeqArray[j].Time);
+		//fprintf(file,"Index #%d = %d, calculated by thread %d @ %d\n", index, subSeqArray[j].Value, subSeqArray[j].ThreadNumber, subSeqArray[j].Time);
+	}
+
+}
+
+void CalculateArithmetic(int numOfWorkers,InputParams *inputParams, FILE* file,enum CALCULATION type)
+{
+	int iterationNumber = inputParams->N / inputParams->SubSeqLength;
+	int i;
+	SubSeqArray *subSeqArray = (SubSeqArray*)malloc(inputParams->SubSeqLength*sizeof(subSeqArray));
+	if (subSeqArray == NULL)
+		exit(1);
+
+	printf("CalculateArithmetic\n");
+	for (i = 0; i < iterationNumber; i++)
+	{	
+		StartBuildingThreads(numOfWorkers,i, inputParams, subSeqArray,type);
+		StartCleaningThread(i,subSeqArray, inputParams->SubSeqLength,file);
+	}
+}
+
+
+void CalculateGeometric(int numOfWorkers,InputParams *inputParams, FILE* file)
 {
 	printf("CalculateGeometric\n");
 
 }
-void DoCalculations(int* subSeqArray, InputParams *inputParams,FILE* files[])
+void DoCalculations(InputParams *inputParams,FILE **files)
 {
-	CalculateArithmetic(subSeqArray, inputParams, files[0]);
-	CalculateGeometric(subSeqArray, inputParams, files[1]);
+	CalculateArithmetic(inputParams->NumOfWorkers/2,inputParams, files[0],ARITHMETIC);
+	CalculateArithmetic(inputParams->NumOfWorkers / 2, inputParams, files[1], GEOMETRIC);
+
 	//Do Differential
 }
 int main(int argc, char* argv[])
 {
 	InputParams *inputParams = (InputParams*) malloc(sizeof(inputParams));
-	int *subSeqArray;
-	FILE **files = (FILE*)malloc(sizeof(FILE*) * 3);
+	FILE **files = (FILE**) malloc(sizeof(FILE**) * 3);
 
 	if (inputParams == NULL)
 		return 1;
@@ -86,14 +152,11 @@ int main(int argc, char* argv[])
 	if (argc != 9)
 		return 1;
 
-	subSeqArray = (int*) malloc(inputParams->SubSeqLength * sizeof(subSeqArray));
 	SetArgumentsInStructre(argv, inputParams);
-	if (subSeqArray == NULL)
-		exit(1);
 	
 	CreateFiles(files);
 
-	DoCalculations(subSeqArray, inputParams,files);
+	DoCalculations(inputParams,files);
 
 
 
