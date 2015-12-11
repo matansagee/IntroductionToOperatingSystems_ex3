@@ -5,7 +5,7 @@
 #include <math.h>
 #include <string.h>
 
-enum CALCULATION {ARITHMETIC,GEOMETRIC};
+enum CALCULATION {ARITHMETIC,GEOMETRIC,DIFFERENCEPROG};
 
 typedef char* string; 
 typedef struct InputParams
@@ -38,6 +38,10 @@ double CalcGeometricProgressionForItemI(int a1,int n,int q)
 	return a1*pow((double) q,(double) n-1);
 }
 
+float CalaDifferenceProgressionForItemI(int a1,int n, int d, int q)
+{
+	return (float) CalcGeometricProgressionForItemI(a1,n,q) - (float) CalcArithmeticProgressionForItemI(a1,n,d);
+}
 
 void SetArgumentsInStructre(char** argv, InputParams* inputParams)
 {
@@ -77,11 +81,20 @@ void StartBuildingThread(SubSeqArray *subSeqArray, InputParams *inputParams, int
 		if (type == ARITHMETIC)
 		{
 			subSeqArray[threadNumber*inputParams->JobSize + i].Value = CalcArithmeticProgressionForItemI(inputParams->A, i + startIndex, inputParams->d);
+			subSeqArray[threadNumber*inputParams->JobSize + i].ThreadNumber = 11;//TODO
+			subSeqArray[threadNumber*inputParams->JobSize + i].Time = 11;//TODO
 		}
-		else if (type == GEOMETRIC)
+		if (type == GEOMETRIC)
 		{
 			subSeqArray[threadNumber*inputParams->JobSize + i].Value = CalcGeometricProgressionForItemI(inputParams->A, i + startIndex, inputParams->q);
-
+			subSeqArray[threadNumber*inputParams->JobSize + i].ThreadNumber = 11;//TODO
+			subSeqArray[threadNumber*inputParams->JobSize + i].Time = 11;//TODO
+		}
+		if (type == DIFFERENCEPROG)
+		{
+			subSeqArray[threadNumber*inputParams->JobSize + i].Value = CalaDifferenceProgressionForItemI(inputParams->A, i + startIndex, inputParams->d, inputParams->q);
+			subSeqArray[threadNumber*inputParams->JobSize + i].ThreadNumber = 11;//TODO
+			subSeqArray[threadNumber*inputParams->JobSize + i].Time = 11;//TODO
 		}
 	}
 }
@@ -112,7 +125,7 @@ void StartCleaningThread(int i, SubSeqArray *subSeqArray,int subSeqLength,FILE *
 
 }
 
-void CalculateArithmetic(int numOfWorkers,InputParams *inputParams, FILE* file,enum CALCULATION type)
+void CalculateSeriesByType(int numOfWorkers,InputParams *inputParams, FILE* file,enum CALCULATION type)
 {
 	int iterationNumber = inputParams->N / inputParams->SubSeqLength;
 	int i;
@@ -120,7 +133,7 @@ void CalculateArithmetic(int numOfWorkers,InputParams *inputParams, FILE* file,e
 	if (subSeqArray == NULL)
 		exit(1);
 
-	printf("CalculateArithmetic\n");
+	printf("CalculateSeriesByType %d\n",type);
 	for (i = 0; i < iterationNumber; i++)
 	{	
 		StartBuildingThreads(numOfWorkers,i, inputParams, subSeqArray,type);
@@ -129,17 +142,19 @@ void CalculateArithmetic(int numOfWorkers,InputParams *inputParams, FILE* file,e
 }
 
 
-void CalculateGeometric(int numOfWorkers,InputParams *inputParams, FILE* file)
-{
-	printf("CalculateGeometric\n");
-
-}
 void DoCalculations(InputParams *inputParams,FILE **files)
 {
-	CalculateArithmetic(inputParams->NumOfWorkers/2,inputParams, files[0],ARITHMETIC);
-	CalculateArithmetic(inputParams->NumOfWorkers / 2, inputParams, files[1], GEOMETRIC);
+	CalculateSeriesByType(inputParams->NumOfWorkers / 2,inputParams, files[0],ARITHMETIC);
+	CalculateSeriesByType(inputParams->NumOfWorkers / 2, inputParams, files[1], GEOMETRIC);
+	//CalculateSeriesByType(inputParams->NumOfWorkers / 2, inputParams, files[2], DIFFERENCEPROG);
+}
 
-	//Do Differential
+int CloseFiles(FILE **files)
+{
+	fclose(files[0]);
+	fclose(files[1]);
+	fclose(files[2]);
+
 }
 int main(int argc, char* argv[])
 {
@@ -157,6 +172,8 @@ int main(int argc, char* argv[])
 	CreateFiles(files);
 
 	DoCalculations(inputParams,files);
+
+	CloseFiles(files);
 
 
 
