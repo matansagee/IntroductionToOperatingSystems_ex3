@@ -1,5 +1,6 @@
 #define _CRT_SECURE_NO_WARNINGS /* to suppress Visual Studio 2010 compiler warning */
 #include "Progression.h"
+#include "ThreadHandler.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include "windows.h"
@@ -59,6 +60,8 @@ int main(int argc, char* argv[])
 	SetArgumentsInStructre(argv, inputParams);
 	
 	CreateFiles(files);
+
+	CreateThreads(inputParams);
 
 	DoCalculations(inputParams,files);
 

@@ -64,8 +64,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.c" />
+    <ClCompile Include="Progression.c" />
+    <ClCompile Include="ThreadHandler.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Progression.h" />
     <ClInclude Include="ThreadHandler.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

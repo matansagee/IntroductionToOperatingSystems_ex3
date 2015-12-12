@@ -1,5 +1,6 @@
 #define _CRT_SECURE_NO_WARNINGS /* to suppress Visual Studio 2010 compiler warning */
 
+
 #include "Progression.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,19 +33,19 @@ void StartBuildingThread(SubSeqArray *subSeqArray, InputParams *inputParams, int
 	{
 		if (type == ARITHMETIC)
 		{
-			subSeqArray[threadNumber*inputParams->JobSize + i].Value = CalcArithmeticProgressionForItemI(inputParams->A, i + startIndex, inputParams->d);
+			subSeqArray[threadNumber*inputParams->JobSize + i].Value = CalcArithmeticProgressionForItemI(inputParams->A1, i + startIndex, inputParams->d);
 			subSeqArray[threadNumber*inputParams->JobSize + i].ThreadNumber = 11;//TODO
 			subSeqArray[threadNumber*inputParams->JobSize + i].Time = 11;//TODO
 		}
 		if (type == GEOMETRIC)
 		{
-			subSeqArray[threadNumber*inputParams->JobSize + i].Value = CalcGeometricProgressionForItemI(inputParams->A, i + startIndex, inputParams->q);
+			subSeqArray[threadNumber*inputParams->JobSize + i].Value = CalcGeometricProgressionForItemI(inputParams->A1, i + startIndex, inputParams->q);
 			subSeqArray[threadNumber*inputParams->JobSize + i].ThreadNumber = 11;//TODO
 			subSeqArray[threadNumber*inputParams->JobSize + i].Time = 11;//TODO
 		}
 		if (type == DIFFERENCEPROG)
 		{
-			subSeqArray[threadNumber*inputParams->JobSize + i].Value = CalaDifferenceProgressionForItemI(inputParams->A, i + startIndex, inputParams->d, inputParams->q);
+			subSeqArray[threadNumber*inputParams->JobSize + i].Value = CalaDifferenceProgressionForItemI(inputParams->A1, i + startIndex, inputParams->d, inputParams->q);
 			subSeqArray[threadNumber*inputParams->JobSize + i].ThreadNumber = 11;//TODO
 			subSeqArray[threadNumber*inputParams->JobSize + i].Time = 11;//TODO
 		}
@@ -100,3 +101,6 @@ void DoCalculations(InputParams *inputParams,FILE **files)
 	CalculateSeriesByType(inputParams->NumOfWorkers / 2, inputParams, files[1], GEOMETRIC);
 	//CalculateSeriesByType(inputParams->NumOfWorkers / 2, inputParams, files[2], DIFFERENCEPROG);
 }
+
+
+

@@ -1,4 +1,9 @@
 #define _CRT_SECURE_NO_WARNINGS /* to suppress Visual Studio 2010 compiler warning */
+
+#ifndef __PROGRESSION_H
+#define __PROGRESSION_H
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "windows.h"
@@ -29,3 +34,6 @@ typedef struct SubSeqArray
 }SubSeqArray;
 
 void DoCalculations(InputParams *inputParams,FILE **files);
+
+
+#endif //PROGRESSION_H
