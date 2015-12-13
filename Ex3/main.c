@@ -1,6 +1,5 @@
 #define _CRT_SECURE_NO_WARNINGS /* to suppress Visual Studio 2010 compiler warning */
 #include "Progression.h"
-#include "ThreadHandler.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include "windows.h"
@@ -44,6 +43,7 @@ int CloseFiles(FILE **files)
 	fclose(files[0]);
 	fclose(files[1]);
 	fclose(files[2]);
+	return 1;
 
 }
 int main(int argc, char* argv[])
@@ -51,10 +51,7 @@ int main(int argc, char* argv[])
 	InputParams *inputParams = (InputParams*) malloc(sizeof(inputParams));
 	FILE **files = (FILE**) malloc(sizeof(FILE**) * 3);
 
-	if (inputParams == NULL)
-		return 1;
-
-	if (argc != 9)
+	if (inputParams == NULL || argc != 9)
 		return 1;
 
 	SetArgumentsInStructre(argv, inputParams);
@@ -63,7 +60,7 @@ int main(int argc, char* argv[])
 
 	CreateThreads(inputParams);
 
-	DoCalculations(inputParams,files);
+//	DoCalculations(inputParams,files);
 
 	CloseFiles(files);
 
