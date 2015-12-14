@@ -59,7 +59,7 @@ typedef struct ThreadParams
 	 HANDLE MutexHandleGeometric;
 	 HANDLE MutexHandleDiffrence;
      TopStatus *TopStatusPtr;
-	 InputParams *InputParams;
+	// InputParams *InputParams;
 }ThreadParams;
 
 typedef struct SubSeqArray

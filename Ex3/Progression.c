@@ -15,6 +15,11 @@ LPCTSTR MutexNameArithmetic = _T( "ProgressionMutexArithmetic" );
 LPCTSTR MutexNameGeometric  = _T( "ProgressionMutexGeometric" );
 LPCTSTR MutexNameDiffrence  = _T( "ProgressionMutexDiffrence" );
 
+HANDLE MutexHandleTop       ;
+HANDLE MutexHandleArithmetic;
+HANDLE MutexHandleGeometric ;
+HANDLE MutexHandleDiffrence ;
+
 TopStatus* CreateTopStatus()
 {
 	TopStatus *topStatus = (TopStatus*) malloc(sizeof(*topStatus));
@@ -117,9 +122,9 @@ void DoCalculations(InputParams *inputParams,FILE **files)
 	//CalculateSeriesByType(inputParams->NumOfWorkers / 2, inputParams, files[2], DIFFERENCEPROG);
 }
 
-HANDLE CreateThreadSimple(LPTHREAD_START_ROUTINE StartAddress,
-	LPVOID ParameterPtr,
-	LPDWORD ThreadIdPtr)
+HANDLE CreateThreadSimple(  LPTHREAD_START_ROUTINE StartAddress, 
+	LPVOID ParameterPtr, 
+	LPDWORD ThreadIdPtr )
 {
 	return CreateThread(
 		NULL,            /*  default security attributes */
@@ -127,174 +132,195 @@ HANDLE CreateThreadSimple(LPTHREAD_START_ROUTINE StartAddress,
 		StartAddress,    /*  thread function */
 		ParameterPtr,    /*  argument to thread function */
 		0,                /*  use default creation flags */
-		ThreadIdPtr);    /*  returns the thread identifier */
+		ThreadIdPtr );    /*  returns the thread identifier */
 }
-
 
 
 HANDLE CreateMutexSimple( LPCTSTR MutexName )
 {
-    return CreateMutex( 
-        NULL,              // default security attributes
-        FALSE,             // initially not owned
-        MutexName);             
+	return CreateMutex( 
+		NULL,              // default security attributes
+		FALSE,             // initially not owned
+		MutexName);             
 }
-    
+
 DWORD GetNextJob(BOOL *stop, TopStatus* TopStatusPtr, HANDLE MutexHandle )
 {
 	BOOL ReleaseRes;
-	DWORD WaitRes = WaitForSingleObject( MutexHandle, INFINITE );
-	if ( WaitRes != WAIT_OBJECT_0 )
-    { 
-		if ( WaitRes == WAIT_ABANDONED )
-		{
-		    printf("Some thread has previously exited without releasing a mutex."
-		            " This is not good programming. Please fix the code.\n" );
-		    return ( ISP_MUTEX_ABANDONED );
-		}
-		else
-		{
-		    return( ISP_MUTEX_WAIT_FAILED );
-		}
-	}
-                
-    /* ........Critical Section Start................ */
-
-	if ( TopStatusPtr->ArithmeticJobStatus == 100 || TopStatusPtr->GeometriceticJobStatus == 100 ||TopStatusPtr->DiffrenceJobStatus == 100 ) 
+	DWORD WaitRes;
+	__try 
 	{
-		TopStatusPtr->ArithmeticJobStatus++;
-        *stop = TRUE; /* handle last letter, then exit loop */
+		WaitRes = WaitForSingleObject( MutexHandle, INFINITE );
+		switch (WaitRes) 
+		{
+			// The thread got ownership of the mutex
+		case WAIT_OBJECT_0: 
+			{
+
+				// TODO: Write to the database
+				if ( TopStatusPtr->ArithmeticJobStatus == 100 || TopStatusPtr->GeometriceticJobStatus == 100 ||TopStatusPtr->DiffrenceJobStatus == 100 ) 
+				{
+					TopStatusPtr->ArithmeticJobStatus++;
+					*stop = TRUE; /* handle last letter, then exit loop */
+				}
+				else
+				{
+					printf("%d is holding mutex\n",GetCurrentThreadId());
+					TopStatusPtr->ArithmeticJobStatus++;
+					*stop = TRUE; /* handle last letter, then exit loop */
+				}
+				//GetNextProgression ( )
+			} 
+			break; 
+
+			// The thread got ownership of an abandoned mutex
+			// The database is in an indeterminate state
+		case WAIT_ABANDONED: 
+			return FALSE; 
+		}
 	}
-	else
-	{
-		TopStatusPtr->ArithmeticJobStatus++;
-        *stop = TRUE; /* handle last letter, then exit loop */
+	__finally { 
+		// Release ownership of the mutex object
+
+		if (! ReleaseMutex(MutexHandle)) 
+		{
+			return ( ISP_MUTEX_RELEASE_FAILED );
+			// Handle error.
+		} 
+		printf("%d is releasing mutex\n",GetCurrentThreadId());
+		return ( ISP_SUCCESS );
 	}
-	//GetNextProgression ( )
-
-	/* ........Critical Section End.................. */
-    
-    ReleaseRes = ReleaseMutex( MutexHandle );
-
-    if ( ReleaseRes == FALSE )
-        return ( ISP_MUTEX_RELEASE_FAILED );
-
-    return ( ISP_SUCCESS );
-
 }
 
-DWORD ThreadProgresion(ThreadParams* threadParamsPtr)
-{
-	int localTreadID =  GetCurrentThreadId();
-	BOOL stop = FALSE;
-	HANDLE MutexHandleTop;
-	DWORD ExitCode = ISP_SUCCESS;/* if no errors occur, this value */ 
-                                    /* will be returned */
+	DWORD ThreadProgresion( LPVOID Argument )
+	{
+		ThreadParams *threadParams = (ThreadParams*) Argument;
+		int localTreadID =  GetCurrentThreadId();
+		BOOL stop = FALSE;
+		DWORD ExitCode = ISP_SUCCESS;/* if no errors occur, this value */ 
+		/* will be returned */
 
-	 MutexHandleTop = OpenMutex( 
-        SYNCHRONIZE, /* default value */
-        FALSE,       /* default value */
-        MutexNameTop ); /* <ISP> This MUST be the EXACT same name as was used when */
-                      /* the mutex was created. To save heartache, use a string */
-                      /* constants ( as is done here ). */
-    
-    if ( MutexHandleTop == NULL )
-	{
-        if ( GetLastError() == ERROR_FILE_NOT_FOUND ){
-            printf("A mutex with the requested name does not exit.\n");
+		//MutexHandleTop = OpenMutex( 
+		//    SYNCHRONIZE, /* default value */
+		//    FALSE,       /* default value */
+		//    MutexNameTop ); /* <ISP> This MUST be the EXACT same name as was used when */
+		//                  /* the mutex was created. To save heartache, use a string */
+		//                  /* constants ( as is done here ). */
+
+		//if ( MutexHandleTop == NULL )
+		//{
+		//    if ( GetLastError() == ERROR_FILE_NOT_FOUND ){
+		//        printf("A mutex with the requested name does not exit.\n");
+		//	}
+		//    ExitCode = ISP_MUTEX_OPEN_FAILED; 
+		//    return 1;
+		//}
+		while (!stop)
+		{
+			//find job and work
+			ExitCode = GetNextJob( &stop, threadParams->TopStatusPtr, MutexHandleTop );
+			if ( ExitCode != ISP_SUCCESS ) 
+			{
+				return( ExitCode );
+			}
+			break;
 		}
-        ExitCode = ISP_MUTEX_OPEN_FAILED; 
-        return 1;
-    }
-	while (!stop)
-	{
-		 //find job and work
-		 ExitCode = GetNextJob( &stop, threadParamsPtr->TopStatusPtr, MutexHandleTop );
-		 if ( ExitCode != ISP_SUCCESS ) 
-		 {
-			 return( ExitCode );
-		 }
-         break;
+
+		printf("thread %d ArithmeticJobStatus - %d\n",localTreadID,threadParams->TopStatusPtr->ArithmeticJobStatus);
+		return ExitCode;
 	}
 
-	printf(" thread %d hello world %d\n",localTreadID,threadParamsPtr->TopStatusPtr->ArithmeticJobStatus);
-	return ExitCode;
-}
 
 
 
+	int CreateThreads(InputParams *inputParams)
+	{
+		DWORD *threadIDs; /* An array of threadIDs */
+		HANDLE *threadHandles; /* An array of thread handles */
+		ThreadParams *threadParams;
+		DWORD waitRes; 
+		DWORD exitcode;
+		//HANDLE MutexHandleTop;
+		//HANDLE MutexHandleArithmetic;
+		//HANDLE MutexHandleGeometric;
+		//HANDLE MutexHandleDiffrence;
+		int ThreadInd;
+		int i;
 
-int CreateThreads(InputParams *inputParams)
-{
-	DWORD *threadIDs; /* An array of threadIDs */
-	HANDLE *threadHandles; /* An array of thread handles */
-	ThreadParams *threadParamsPtr;
-	DWORD exitcode;
-    HANDLE MutexHandleTop;
-	HANDLE MutexHandleArithmetic;
-	HANDLE MutexHandleGeometric;
-	HANDLE MutexHandleDiffrence;
-	int i;
+		TopStatus* topStatus = CreateTopStatus();
+		threadIDs = (DWORD*) malloc (inputParams->NumOfWorkers * sizeof(threadIDs));
+		threadHandles = (HANDLE*) malloc (inputParams->NumOfWorkers * sizeof(*threadHandles));
+		threadParams = (ThreadParams*) malloc(inputParams->NumOfWorkers * sizeof(*threadParams));
+		if (threadParams ==NULL ||threadIDs == NULL || threadHandles == NULL || topStatus == NULL)
+			exit(1);
+
+		MutexHandleTop        = CreateMutexSimple( MutexNameTop );
+		if (MutexHandleTop == NULL) 
+		{
+			printf("CreateMutex error: %d\n", GetLastError());
+		}
+		MutexHandleArithmetic = CreateMutexSimple( MutexNameArithmetic );
+		if (MutexHandleArithmetic == NULL) 
+		{
+			printf("CreateMutex error: %d\n", GetLastError());
+		}
+		MutexHandleGeometric  = CreateMutexSimple( MutexNameGeometric );
+		if (MutexHandleGeometric == NULL) 
+		{
+			printf("CreateMutex error: %d\n", GetLastError());
+		}
+		MutexHandleDiffrence  = CreateMutexSimple( MutexNameDiffrence );
+		if (MutexHandleDiffrence == NULL) 
+		{
+			printf("CreateMutex error: %d\n", GetLastError());
+		}
 
 
-	TopStatus* topStatus = CreateTopStatus();
-	if (topStatus == NULL)
+
+		for (ThreadInd=0;ThreadInd<inputParams->NumOfWorkers;ThreadInd++)
+		{
+			threadParams[ThreadInd].TopStatusPtr          = topStatus;
+			threadParams[ThreadInd].InputParams			 = inputParams;
+
+			threadHandles[ThreadInd] = CreateThreadSimple(
+				(LPTHREAD_START_ROUTINE)ThreadProgresion,
+				(LPVOID) &(threadParams[ThreadInd]),
+				NULL); 
+
+			if ( threadHandles[ThreadInd] == NULL )
+			{
+				printf("Failed to create Thread. Exiting program.\n");
+				break;
+			}
+		}
+
+		/* Wait for all threads to end: */
+		waitRes = WaitForMultipleObjects(
+			inputParams->NumOfWorkers,
+			threadHandles,
+			TRUE,       /* wait until all threads finish */
+			INFINITE);
+
+		if ( waitRes == WAIT_FAILED )
+		{ 
+			printf("Waiting for threads failed. Ending program.\n"); 
+			exit(1);
+		}
+
+		//Sleep(10);
+
+		for (i = 0; i < inputParams->NumOfWorkers; i++)
+		{
+			GetExitCodeThread(threadHandles[i], &exitcode);
+			printf("Thread number %d returned exit code %d\n", i, exitcode);
+			CloseHandle(threadHandles[i]);
+		}
+
+		CloseHandle(MutexHandleTop);
+		CloseHandle(MutexHandleArithmetic);
+		CloseHandle(MutexHandleGeometric);
+		CloseHandle(MutexHandleDiffrence);
+
 		return 0;
-
-// ----------------------------- 
-//   Create Mutexes            
-// ----------------------------- 
-	threadIDs = (DWORD*) malloc (inputParams->NumOfWorkers * sizeof(threadIDs));
-	threadHandles = (HANDLE*) malloc (inputParams->NumOfWorkers * sizeof(threadHandles));
-	threadParamsPtr = (ThreadParams*) malloc(inputParams->NumOfWorkers * sizeof(threadParamsPtr));
-	if (threadParamsPtr ==NULL )
-		exit(1);
-
-	MutexHandleTop        = CreateMutexSimple( MutexNameTop );
-	MutexHandleArithmetic = CreateMutexSimple( MutexNameArithmetic );
-	MutexHandleGeometric  = CreateMutexSimple( MutexNameGeometric );
-	MutexHandleDiffrence  = CreateMutexSimple( MutexNameDiffrence );
-
-	for (i=0;i<inputParams->NumOfWorkers;i++)
-	{
-		threadParamsPtr[i].MutexHandleTop        = MutexHandleTop;
-		threadParamsPtr[i].MutexHandleArithmetic = MutexHandleArithmetic;
-		threadParamsPtr[i].MutexHandleGeometric  = MutexHandleGeometric;
-		threadParamsPtr[i].MutexHandleDiffrence  = MutexHandleDiffrence;
-		threadParamsPtr[i].TopStatusPtr          = topStatus;
-		threadParamsPtr[i].InputParams			 = inputParams;
 	}
-
-// ----------------------------- 
-//   Create Threads            
-// ----------------------------- 
-
-	
-	if (threadHandles==NULL || threadIDs ==NULL )
-		exit(1);
-	
-	for (i=0;i<inputParams->NumOfWorkers;i++)
-	{
-		threadHandles[i] = CreateThreadSimple(
-		(LPTHREAD_START_ROUTINE) ThreadProgresion,  /*  thread function */
-		(LPVOID) &(threadParamsPtr[i]),                            /*  argument to thread function */
-		&threadIDs[i]); 
-	}
-
-	/* Wait for all threads to end: */
-	WaitForMultipleObjects(
-		inputParams->NumOfWorkers,
-		threadHandles,
-		TRUE,       /* wait until all threads finish */
-		INFINITE);
-
-	Sleep(10);
-
-	for (i = 0; i < inputParams->NumOfWorkers; i++)
-	{
-		GetExitCodeThread(threadHandles[i], &exitcode);
-		printf("Thread number %d returned exit code %d\n", i, exitcode);
-		CloseHandle(threadHandles[i]);
-	}
-}
 
