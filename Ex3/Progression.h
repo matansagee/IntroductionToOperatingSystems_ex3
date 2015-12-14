@@ -11,9 +11,8 @@
 #include <string.h>
 #include <tchar.h>
 
-enum CALCULATION {ARITHMETIC,GEOMETRIC,DIFFERENCEPROG};
-
-
+typedef enum {ARITHMETIC,GEOMETRIC,DIFFERENCEPROG, DONOTHING} SeriesType;
+typedef enum {CLEANER, BUILDER} WorkerType;
 
 typedef char* string; 
 
@@ -28,7 +27,7 @@ typedef enum {
     ISP_MUTEX_WAIT_FAILED,
     ISP_MUTEX_ABANDONED,
     ISP_MUTEX_RELEASE_FAILED,
-    ISP_ILLEGAL_LETTER_WAS_READ
+    ISP_ILLEGAL_LETTER_WAS_READ,
 } ErrorCode_t;
 
 typedef struct InputParams
@@ -46,28 +45,47 @@ typedef struct InputParams
 
 typedef struct TopStatus
 {
-	int ArithmeticJobStatus;
-	int GeometriceticJobStatus;
-	int DiffrenceJobStatus;
+	int ArithmeticJobsCounter;
+	int GeometriceticJobsCounter;
+	int DiffrenceJobsCounter;
+	int NumOfWorkersOnArithmetic;
+	int NumOfWorkersOnGeometric;
+	int NumOfWorkersOnDiffrence;
+	BOOL ArithmeticNeedClean;
+	BOOL GeometricNeedClean;
+	BOOL DiffrenceNeedClean;
+	BOOL ArithmeticCleanOnProgress;
+	BOOL GeometricCleanOnProgress;
+	BOOL DiffrenceCleanOnProgress;
 
 }TopStatus;
-
-typedef struct ThreadParams
-{
-	 HANDLE MutexHandleTop;
-	 HANDLE MutexHandleArithmetic;
-	 HANDLE MutexHandleGeometric;
-	 HANDLE MutexHandleDiffrence;
-     TopStatus *TopStatusPtr;
-	// InputParams *InputParams;
-}ThreadParams;
 
 typedef struct SubSeqArray
 {
 	float Value;
 	float ThreadNumber;
 	float Time;
+	BOOL ValueValid;
 }SubSeqArray;
+
+typedef struct SeriesData
+{
+	int NumOfSubJobsDone;
+	SubSeqArray *SubSeqArray;
+}SeriesData;
+
+
+typedef struct ThreadParams
+{
+     TopStatus   *TopStatus;
+	 InputParams *InputParams;
+	 SeriesType   SeriesNextJob;
+	 WorkerType  WorkerType;
+	 SeriesData *SeriesData;
+	 int	n;
+}ThreadParams;
+
+
 
 
 void DoCalculations(InputParams *inputParams,FILE **files);
