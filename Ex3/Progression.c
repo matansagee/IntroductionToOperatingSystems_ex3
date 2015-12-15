@@ -47,7 +47,7 @@ int CalcArithmeticProgressionForItemI(int a1,int n, int d)
 
 double CalcGeometricProgressionForItemI(int a1,int n,int q)
 {
-	return a1*pow((double) q,(double) n-1);
+	return a1*pow((double) q,(double) (n+2)-1);
 }
 
 float CalaDifferenceProgressionForItemI(int a1,int n, int d, int q)
