@@ -42,7 +42,7 @@ TopStatus* CreateTopStatus()
 
 int CalcArithmeticProgressionForItemI(int a1,int n, int d)
 {
-	return a1+(n-1)*d;
+	return a1+((n+2)-1)*d;
 }
 
 double CalcGeometricProgressionForItemI(int a1,int n,int q)
