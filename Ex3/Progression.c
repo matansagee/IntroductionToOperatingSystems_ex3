@@ -101,7 +101,7 @@ void StartCleaningThread(int subSeqArrayNumber, SubSeqArray *subSeqArray,int sub
 	for (j = 0; j < subSeqLength; j++)
 	{
 		index = subSeqArrayNumber*subSeqLength + j;
-		printf("Index #%d = %d, calculated by thread %d @ %d\n", index, subSeqArray[j].Value, subSeqArray[j].ThreadNumber, subSeqArray[j].Time);
+		printf("Index #%d = %f, calculated by thread %d @ %d\n", index, subSeqArray[j].Value, subSeqArray[j].ThreadNumber, subSeqArray[j].Time);
 		//fprintf(file,"Index #%d = %d, calculated by thread %d @ %d\n", index, subSeqArray[j].Value, subSeqArray[j].ThreadNumber, subSeqArray[j].Time);
 	}
 
@@ -278,20 +278,28 @@ int UpdateTopStatus(ThreadParams *threadParams)
 int WorkOnSeries ( ThreadParams *threadParams )
 {
 	int startIndexInN = threadParams->n;
+	int seriesDataInd;
 	int startIndexInSubSequenceArray = threadParams->n % threadParams->InputParams->SubSeqLength;
 	int subSeqArrayNumber =  threadParams->n / threadParams->InputParams->SubSeqLength;
+	switch(threadParams->SeriesNextJob)
+				{
+					case ARITHMETIC:		seriesDataInd = 0; break;
+					case GEOMETRIC:			seriesDataInd = 1; break;
+					case DIFFERENCEPROG:	seriesDataInd = 2; break;
+				}
+
 	switch(threadParams->WorkerType)
 	{
 	case BUILDER: 
 		{
-			CalculateSeries(threadParams->SeriesData->SubSeqArray, threadParams->InputParams, startIndexInN, startIndexInSubSequenceArray, threadParams->SeriesNextJob);
+			CalculateSeries(threadParams->SeriesData[seriesDataInd].SubSeqArray, threadParams->InputParams, startIndexInN, startIndexInSubSequenceArray, threadParams->SeriesNextJob);
 			UpdateSeriesParams(threadParams);
 		}
 		break;
 	case CLEANER: 
 		{
 			printf("%d,I'm cleaner\n",GetCurrentThreadId()); 
-			StartCleaningThread(subSeqArrayNumber, threadParams->SeriesData->SubSeqArray,threadParams->InputParams->SubSeqLength,NULL);
+			StartCleaningThread(subSeqArrayNumber, threadParams->SeriesData[seriesDataInd].SubSeqArray,threadParams->InputParams->SubSeqLength,NULL);
 			UpdateTopStatus(threadParams);			
 		}
 		break;
