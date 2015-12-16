@@ -63,8 +63,8 @@ typedef struct TopStatus
 typedef struct SubSeqArray
 {
 	float Value;
-	float ThreadNumber;
-	float Time;
+	int ThreadNumber;
+	SYSTEMTIME lpSystemTime;
 	BOOL ValueValid;
 }SubSeqArray;
 
@@ -83,12 +83,13 @@ typedef struct ThreadParams
 	 WorkerType  WorkerType;
 	 SeriesData *SeriesData;
 	 int	n;
+	 FILE **files;
 }ThreadParams;
 
 
 
 
 void DoCalculations(InputParams *inputParams,FILE **files);
-int CreateThreads(InputParams *inputParams);
+int CreateThreads(InputParams *inputParams,FILE **files);
 
 #endif //PROGRESSION_H

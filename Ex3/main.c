@@ -48,24 +48,33 @@ int CloseFiles(FILE **files)
 }
 int main(int argc, char* argv[])
 {
+	SYSTEMTIME systemTime;
 	InputParams *inputParams = (InputParams*) malloc(sizeof(inputParams));
 	FILE **files = (FILE**) malloc(sizeof(FILE**) * 3);
-
 	if (inputParams == NULL || argc != 9)
 		return 1;
+	GetSystemTime(&systemTime);
+
+	printf("%d - Begin - %02d:%02d:%02d.%03d\n",
+				systemTime.wHour,
+				systemTime.wMinute,
+				systemTime.wSecond,
+				systemTime.wMilliseconds);
 
 	SetArgumentsInStructre(argv, inputParams);
-	
+
 	CreateFiles(files);
 
-	CreateThreads(inputParams);
+	CreateThreads(inputParams,files);
 
-//	DoCalculations(inputParams,files);
+	GetSystemTime(&systemTime);
 
 	CloseFiles(files);
 
-
-
-	printf("Hello World");
+	printf("%d - End - %02d:%02d:%02d.%03d\n",
+			systemTime.wHour,
+			systemTime.wMinute,
+			systemTime.wSecond,
+			systemTime.wMilliseconds);
 	while (1);
 }

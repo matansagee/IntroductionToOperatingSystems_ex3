@@ -42,94 +42,114 @@ TopStatus* CreateTopStatus()
 
 int CalcArithmeticProgressionForItemI(int a1,int n, int d)
 {
-	return a1+((n+2)-1)*d;
+	return a1+(n-1)*d;
 }
 
 double CalcGeometricProgressionForItemI(int a1,int n,int q)
 {
-	return a1*pow((double) q,(double) (n+2)-1);
+	return a1*pow((double) q,(double) (n-1));
 }
 
 float CalaDifferenceProgressionForItemI(int a1,int n, int d, int q)
 {
 	return (float) CalcGeometricProgressionForItemI(a1,n,q) - (float) CalcArithmeticProgressionForItemI(a1,n,d);
 }
+/**
+* CreateProcessSimple uses the win32 API to create a process that runs the
+* command in 'CommandLine'. it uses the win32 API function CreateProcess()
+* using default values for most parameters.
+*
+* Accepts:
+* --------
+* CommandLine - a windows generic string containing the command that the new
+*               process performs. ( See CreateProcess( documentation for more ).
+* ProcessInfoPtr - an output parameter, used to return a PROCESS_INFORMATION
+*					structure containing data about the process that was created.
+*					( See CreateProcess() documentation for more ).
+* Returns:
+* --------
+* the output of CreateProcess().
+*/
+BOOL CreateProcessSimple(LPTSTR CommandLine, PROCESS_INFORMATION *ProcessInfoPtr)
+{
+	STARTUPINFO    startinfo = { sizeof(STARTUPINFO), NULL, 0 }; /* <ISP> here we */
+																 /* initialize a "Neutral" STARTUPINFO variable. Supplying this to */
+																 /* CreateProcess() means we have no special interest in this parameter. */
+																 /* This is equivalent to what we are doing by supplying NULL to most other */
+																 /* parameters of CreateProcess(). */
+
+	return CreateProcess(NULL, /*  No module name (use Command line). */
+		CommandLine,            /*  Command line. */
+		NULL,                    /*  Process handle not inheritable. */
+		NULL,                    /*  Thread handle not inheritable. */
+		FALSE,                    /*  Set handle inheritance to FALSE. */
+		NORMAL_PRIORITY_CLASS,    /*  creation/priority flags. */
+		NULL,                    /*  Use parent's environment block. */
+		NULL,                    /*  Use parent's starting directory. */
+		&startinfo,                /*  Pointer to STARTUPINFO structure. */
+		ProcessInfoPtr            /*  Pointer to PROCESS_INFORMATION structure. */
+		);
+}
 
 void CalculateSeries(SubSeqArray *subSeqArray, InputParams *inputParams, int startIndexInN, int startIndexInSubSequenceArray, SeriesType type)
 {
 	int i;
+	int index;
+	int n;
+
+	
 	for (i = 0; i < inputParams->JobSize; i++)
 	{
-		if (type == ARITHMETIC)
+		index = startIndexInSubSequenceArray/*inputParams->JobSize*/ + i;
+		n = i + startIndexInN+1;
+		switch(type)
 		{
-			subSeqArray[startIndexInSubSequenceArray*inputParams->JobSize + i].Value = (float) CalcArithmeticProgressionForItemI(inputParams->A1, i + startIndexInN, inputParams->d);
-			subSeqArray[startIndexInSubSequenceArray*inputParams->JobSize + i].ThreadNumber = GetCurrentThreadId();
-			subSeqArray[startIndexInSubSequenceArray*inputParams->JobSize + i].Time = 11;//TODO
+		case ARITHMETIC :
+			subSeqArray[index].Value = (float) CalcArithmeticProgressionForItemI(inputParams->A1, n, inputParams->d);
+			break;
+		case GEOMETRIC:
+			subSeqArray[index].Value = (float) CalcGeometricProgressionForItemI(inputParams->A1, n, inputParams->q);
+			break;
+		case DIFFERENCEPROG:
+			subSeqArray[index].Value = (float) CalaDifferenceProgressionForItemI(inputParams->A1, n, inputParams->d, inputParams->q);
+			break;
 		}
-		if (type == GEOMETRIC)
-		{
-			subSeqArray[startIndexInSubSequenceArray*inputParams->JobSize + i].Value = (float) CalcGeometricProgressionForItemI(inputParams->A1, i + startIndexInN, inputParams->q);
-			subSeqArray[startIndexInSubSequenceArray*inputParams->JobSize + i].ThreadNumber = GetCurrentThreadId();
-			subSeqArray[startIndexInSubSequenceArray*inputParams->JobSize + i].Time = 11;//TODO
-		}
-		if (type == DIFFERENCEPROG)
-		{
-			subSeqArray[startIndexInSubSequenceArray*inputParams->JobSize + i].Value = (float) CalaDifferenceProgressionForItemI(inputParams->A1, i + startIndexInN, inputParams->d, inputParams->q);
-			subSeqArray[startIndexInSubSequenceArray*inputParams->JobSize + i].ThreadNumber = GetCurrentThreadId();
-			subSeqArray[startIndexInSubSequenceArray*inputParams->JobSize + i].Time = 11;//TODO
-		}
+		subSeqArray[index].ThreadNumber = GetCurrentThreadId();
+		GetLocalTime(&subSeqArray[index].lpSystemTime);
 	}
 }
 
-void CalculateSeriess(int numOfWorkers, int iterationNumber, InputParams *inputParams, SubSeqArray *subSeqArray,SeriesType type)
-{
-	int subSeq = inputParams->SubSeqLength;
-	int jobSize = inputParams->JobSize;
-	int threadNumber;
-	int startIndex = iterationNumber*subSeq;
-	int stopIndex = (iterationNumber + 1)*subSeq;
-	//spliiting to thread
-	for (threadNumber = 0; threadNumber < subSeq/jobSize; threadNumber++)
-	{
-		CalculateSeries(subSeqArray, inputParams, startIndex + (threadNumber*jobSize),threadNumber,type);
-	}
-}
-void StartCleaningThread(int subSeqArrayNumber, SubSeqArray *subSeqArray,int subSeqLength,FILE *file)
+
+void StartCleaningThread(int N,int seriesNextJob, int subSeqArrayNumber, SubSeqArray *subSeqArray,int subSeqLength,FILE *file)
 {
 	int j = 0;
 	int index;
 	for (j = 0; j < subSeqLength; j++)
 	{
-		index = subSeqArrayNumber*subSeqLength + j;
-		printf("Index #%d = %f, calculated by thread %d @ %d\n", index, subSeqArray[j].Value, subSeqArray[j].ThreadNumber, subSeqArray[j].Time);
-		//fprintf(file,"Index #%d = %d, calculated by thread %d @ %d\n", index, subSeqArray[j].Value, subSeqArray[j].ThreadNumber, subSeqArray[j].Time);
+		index = subSeqArrayNumber*subSeqLength + j +1;
+		/*printf("%d - Index #%d = %f, calculated by thread %d @ %02d:%02d:%02d.%03d\n", 
+			seriesNextJob,
+			index, 
+			subSeqArray[j].Value, 
+			subSeqArray[j].ThreadNumber, 
+			subSeqArray[j].lpSystemTime.wHour,
+			subSeqArray[j].lpSystemTime.wMinute,
+			subSeqArray[j].lpSystemTime.wSecond,
+			subSeqArray[j].lpSystemTime.wMilliseconds);*/
+		fprintf(file,"Index #%d = %f, calculated by thread %d @ %02d:%02d:%02d.%03d\n", 
+			index, 
+			subSeqArray[j].Value, 
+			subSeqArray[j].ThreadNumber, 
+			subSeqArray[j].lpSystemTime.wHour,
+			subSeqArray[j].lpSystemTime.wMinute,
+			subSeqArray[j].lpSystemTime.wSecond,
+			subSeqArray[j].lpSystemTime.wMilliseconds);
+		if (index == N)
+			break;
 	}
 
 }
 
-void CalculateSeriesByType(int numOfWorkers,InputParams *inputParams, FILE* file,SeriesType type)
-{
-	int iterationNumber = inputParams->N / inputParams->SubSeqLength;
-	int i;
-	SubSeqArray *subSeqArray = (SubSeqArray*)malloc(inputParams->SubSeqLength*sizeof(subSeqArray));
-	if (subSeqArray == NULL)
-		exit(1);
-
-	printf("CalculateSeriesByType %d\n",type);
-	for (i = 0; i < iterationNumber; i++)
-	{	
-		CalculateSeriess(numOfWorkers,i, inputParams, subSeqArray,type);
-		StartCleaningThread(i,subSeqArray, inputParams->SubSeqLength,file);
-	}
-}
-
-
-void DoCalculations(InputParams *inputParams,FILE **files)
-{
-	CalculateSeriesByType(inputParams->NumOfWorkers / 2,inputParams, files[0],ARITHMETIC);
-	CalculateSeriesByType(inputParams->NumOfWorkers / 2, inputParams, files[1], GEOMETRIC);
-	//CalculateSeriesByType(inputParams->NumOfWorkers / 2, inputParams, files[2], DIFFERENCEPROG);
-}
 
 HANDLE CreateThreadSimple(  LPTHREAD_START_ROUTINE StartAddress, 
 	LPVOID ParameterPtr, 
@@ -164,12 +184,12 @@ DWORD RequestCleanerInTopStatus(ThreadParams *threadParams)
 		{
 		case WAIT_OBJECT_0: 
 			{
-				printf("%d is holding mutex %d\n",GetCurrentThreadId(),MutexHandleTop);
+				//printf("%d is holding mutex %d\n",GetCurrentThreadId(),MutexHandleTop);
 				switch(threadParams->SeriesNextJob)
 				{
-					case ARITHMETIC:		threadParams->TopStatus->ArithmeticNeedClean= TRUE; break;
-					case GEOMETRIC:			threadParams->TopStatus->GeometricNeedClean = TRUE; break;
-					case DIFFERENCEPROG:	threadParams->TopStatus->DiffrenceNeedClean = TRUE; break;
+				case ARITHMETIC:		threadParams->TopStatus->ArithmeticNeedClean= TRUE; break;
+				case GEOMETRIC:			threadParams->TopStatus->GeometricNeedClean = TRUE; break;
+				case DIFFERENCEPROG:	threadParams->TopStatus->DiffrenceNeedClean = TRUE; break;
 				}
 			} 
 			break; 
@@ -182,7 +202,7 @@ DWORD RequestCleanerInTopStatus(ThreadParams *threadParams)
 		if ( !ReleaseMutex(MutexHandleTop)) {
 			return ( ISP_MUTEX_RELEASE_FAILED );
 		} 
-		printf("%d is releasing mutex %d\n",GetCurrentThreadId(),MutexHandleTop);
+		//printf("%d is releasing mutex %d\n",GetCurrentThreadId(),MutexHandleTop);
 		return ( ISP_SUCCESS );
 	}
 }
@@ -191,12 +211,19 @@ int UpdateThreadParamsByLogic(ThreadParams *threadParams)
 {
 	int subSeqLength = threadParams->InputParams->SubSeqLength;
 	int jobSize = threadParams->InputParams->JobSize;
+	int N = threadParams->InputParams->N;
 	int maxWorkersOnSeries = (subSeqLength / jobSize);
 
-	printf("%d, I'm builder and i finished job %d\n",GetCurrentThreadId(),threadParams->SeriesData[(int)(threadParams->SeriesNextJob)].NumOfSubJobsDone); 
+	//printf("%d, I'm builder and i finished job %d\n",GetCurrentThreadId(),threadParams->SeriesData[(int)(threadParams->SeriesNextJob)].NumOfSubJobsDone); 
 	// update series
 	threadParams->SeriesData[(int)(threadParams->SeriesNextJob)].NumOfSubJobsDone++;
 	if (threadParams->SeriesData[threadParams->SeriesNextJob].NumOfSubJobsDone == maxWorkersOnSeries)
+	{
+		RequestCleanerInTopStatus(threadParams);
+		threadParams->SeriesData[threadParams->SeriesNextJob].NumOfSubJobsDone = 0;
+	}
+	//handle N % SubSeqLength != 0
+	if (threadParams->n + 1 == N)
 	{
 		RequestCleanerInTopStatus(threadParams);
 		threadParams->SeriesData[threadParams->SeriesNextJob].NumOfSubJobsDone = 0;
@@ -210,9 +237,9 @@ DWORD UpdateSeriesParams ( ThreadParams *threadParams )
 	DWORD exitCode;
 	switch(threadParams->SeriesNextJob)
 	{
-		case ARITHMETIC:		handle = MutexHandleArithmetic; break;
-		case GEOMETRIC:			handle = MutexHandleGeometric; break;
-		case DIFFERENCEPROG:	handle = MutexHandleDiffrence; break;
+	case ARITHMETIC:		handle = MutexHandleArithmetic; break;
+	case GEOMETRIC:			handle = MutexHandleGeometric; break;
+	case DIFFERENCEPROG:	handle = MutexHandleDiffrence; break;
 	}
 	__try 
 	{
@@ -222,7 +249,7 @@ DWORD UpdateSeriesParams ( ThreadParams *threadParams )
 			// The thread got ownership of the mutex
 		case WAIT_OBJECT_0: 
 			{
-				printf("%d is holding mutex %d\n",GetCurrentThreadId(),threadParams->SeriesNextJob);
+				//printf("%d is holding mutex %d\n",GetCurrentThreadId(),threadParams->SeriesNextJob);
 				exitCode = UpdateThreadParamsByLogic(threadParams);
 				if (exitCode != ISP_SUCCESS)
 					return exitCode;
@@ -235,7 +262,7 @@ DWORD UpdateSeriesParams ( ThreadParams *threadParams )
 	}
 	__finally
 	{ 
-		printf("%d is releasing mutex %d\n",GetCurrentThreadId(),threadParams->SeriesNextJob);
+		//printf("%d is releasing mutex %d\n",GetCurrentThreadId(),threadParams->SeriesNextJob);
 		if ( !ReleaseMutex(handle)) {
 			return ( ISP_MUTEX_RELEASE_FAILED );
 		} 
@@ -253,12 +280,12 @@ int UpdateTopStatus(ThreadParams *threadParams)
 		{
 		case WAIT_OBJECT_0: 
 			{
-				printf("%d is holding mutex %d\n",GetCurrentThreadId(),MutexHandleTop);
+				//printf("%d is holding mutex %d\n",GetCurrentThreadId(),MutexHandleTop);
 				switch(threadParams->SeriesNextJob)
 				{
-					case ARITHMETIC:		threadParams->TopStatus->ArithmeticCleanOnProgress= FALSE; break;
-					case GEOMETRIC:			threadParams->TopStatus->GeometricCleanOnProgress = FALSE; break;
-					case DIFFERENCEPROG:	threadParams->TopStatus->DiffrenceCleanOnProgress = FALSE; break;
+				case ARITHMETIC:		threadParams->TopStatus->ArithmeticCleanOnProgress= FALSE; break;
+				case GEOMETRIC:			threadParams->TopStatus->GeometricCleanOnProgress = FALSE; break;
+				case DIFFERENCEPROG:	threadParams->TopStatus->DiffrenceCleanOnProgress = FALSE; break;
 				}
 			} 
 			break; 
@@ -271,7 +298,7 @@ int UpdateTopStatus(ThreadParams *threadParams)
 			return ( ISP_MUTEX_RELEASE_FAILED );
 		} 
 
-		printf("%d is releasing mutex %d\n",GetCurrentThreadId(),MutexHandleTop);
+		//printf("%d is releasing mutex %d\n",GetCurrentThreadId(),MutexHandleTop);
 		return ( ISP_SUCCESS );
 	}
 }
@@ -282,11 +309,11 @@ int WorkOnSeries ( ThreadParams *threadParams )
 	int startIndexInSubSequenceArray = threadParams->n % threadParams->InputParams->SubSeqLength;
 	int subSeqArrayNumber =  threadParams->n / threadParams->InputParams->SubSeqLength;
 	switch(threadParams->SeriesNextJob)
-				{
-					case ARITHMETIC:		seriesDataInd = 0; break;
-					case GEOMETRIC:			seriesDataInd = 1; break;
-					case DIFFERENCEPROG:	seriesDataInd = 2; break;
-				}
+	{
+	case ARITHMETIC:		seriesDataInd = 0; break;
+	case GEOMETRIC:			seriesDataInd = 1; break;
+	case DIFFERENCEPROG:	seriesDataInd = 2; break;
+	}
 
 	switch(threadParams->WorkerType)
 	{
@@ -298,8 +325,12 @@ int WorkOnSeries ( ThreadParams *threadParams )
 		break;
 	case CLEANER: 
 		{
-			printf("%d,I'm cleaner\n",GetCurrentThreadId()); 
-			StartCleaningThread(subSeqArrayNumber, threadParams->SeriesData[seriesDataInd].SubSeqArray,threadParams->InputParams->SubSeqLength,NULL);
+			//printf("%d,I'm cleaner\n",GetCurrentThreadId()); 
+			StartCleaningThread(threadParams->InputParams->N,
+				threadParams->SeriesNextJob,subSeqArrayNumber, 
+				threadParams->SeriesData[seriesDataInd].SubSeqArray,
+				threadParams->InputParams->SubSeqLength,
+				threadParams->files[seriesDataInd]);
 			UpdateTopStatus(threadParams);			
 		}
 		break;
@@ -417,10 +448,11 @@ DWORD GetNextJob(BOOL *stop, ThreadParams *threadParams )
 			// The thread got ownership of the mutex
 		case WAIT_OBJECT_0: 
 			{
-				printf("%d is holding mutex %d\n",GetCurrentThreadId(),MutexHandleTop);
+				//printf("%d is holding mutex %d\n",GetCurrentThreadId(),MutexHandleTop);
 				currentJobs = GetSeriesTypeAndUpdateThreadParams(threadParams);
 				if (currentJobs == DONOTHING)
 				{
+					threadParams->SeriesNextJob = currentJobs;
 					*stop = TRUE; /* handle last letter, then exit loop */
 					break;
 				}
@@ -440,7 +472,7 @@ DWORD GetNextJob(BOOL *stop, ThreadParams *threadParams )
 			// Handle error.
 		} 
 
-		printf("%d is releasing mutex %d\n",GetCurrentThreadId(),MutexHandleTop);
+		//printf("%d is releasing mutex %d\n",GetCurrentThreadId(),MutexHandleTop);
 		return ( ISP_SUCCESS );
 	}
 
@@ -461,9 +493,13 @@ DWORD ThreadProgresion( LPVOID Argument )
 		{
 			return ( ExitCode );
 		}
+		if (threadParams->SeriesNextJob == DONOTHING)
+		{
+			return ISP_SUCCESS;
+		}
 		WorkOnSeries(threadParams);
 	} // End of while
-	printf("thread %d Job is - %d\n",localTreadID,ExitCode);
+	//printf("thread %d Job is - %d\n",localTreadID,ExitCode);
 
 	return ExitCode;
 }
@@ -479,7 +515,6 @@ SeriesData* CreateSeriesDataArray (InputParams *inputParams)
 		if (seriesDataArray[i].SubSeqArray == NULL)
 			exit(1);
 		seriesDataArray[i].SubSeqArray->ThreadNumber=0;
-		seriesDataArray[i].SubSeqArray->Time=0;
 		seriesDataArray[i].SubSeqArray->Value=0;
 		seriesDataArray[i].SubSeqArray->ValueValid=0;
 	}
@@ -487,7 +522,7 @@ SeriesData* CreateSeriesDataArray (InputParams *inputParams)
 }
 
 
-int CreateThreads(InputParams *inputParams)
+int CreateThreads(InputParams *inputParams,FILE **files)
 {
 	DWORD *threadIDs; /* An array of threadIDs */
 	HANDLE *threadHandles; /* An array of thread handles */
@@ -497,82 +532,81 @@ int CreateThreads(InputParams *inputParams)
 	DWORD exitcode;
 	int ThreadInd;
 	int i;
-
 	TopStatus* topStatus = CreateTopStatus();
 	threadHandles = (HANDLE*) malloc (inputParams->NumOfWorkers * sizeof(*threadHandles));
 	threadParams = (ThreadParams*) malloc(inputParams->NumOfWorkers * sizeof(*threadParams));
 	seriesDataArray = CreateSeriesDataArray (inputParams);
 	if (threadParams ==NULL || threadHandles == NULL || topStatus == NULL)
 		exit(1);
-
-	MutexHandleTop        = CreateMutexSimple( MutexNameTop );
-	if (MutexHandleTop == NULL) 
+	__try
 	{
-		printf("CreateMutex error: %d\n", GetLastError());
-	}
-	MutexHandleArithmetic = CreateMutexSimple( MutexNameArithmetic );
-	if (MutexHandleArithmetic == NULL) 
-	{
-		printf("CreateMutex error: %d\n", GetLastError());
-	}
-	MutexHandleGeometric  = CreateMutexSimple( MutexNameGeometric );
-	if (MutexHandleGeometric == NULL) 
-	{
-		printf("CreateMutex error: %d\n", GetLastError());
-	}
-	MutexHandleDiffrence  = CreateMutexSimple( MutexNameDiffrence );
-	if (MutexHandleDiffrence == NULL) 
-	{
-		printf("CreateMutex error: %d\n", GetLastError());
-	}
-
-
-
-	for (ThreadInd=0;ThreadInd<inputParams->NumOfWorkers;ThreadInd++)
-	{
-		threadParams[ThreadInd].TopStatus   = topStatus;
-		threadParams[ThreadInd].InputParams	= inputParams;
-		threadParams[ThreadInd].SeriesData	= seriesDataArray;
-
-		threadHandles[ThreadInd] = CreateThreadSimple(
-			(LPTHREAD_START_ROUTINE)ThreadProgresion,
-			(LPVOID) &(threadParams[ThreadInd]),
-			NULL); 
-
-		if ( threadHandles[ThreadInd] == NULL )
+		MutexHandleTop        = CreateMutexSimple( MutexNameTop );
+		if (MutexHandleTop == NULL) 
 		{
-			printf("Failed to create Thread. Exiting program.\n");
-			break;
+			printf("CreateMutex error: %d\n", GetLastError());
+		}
+		MutexHandleArithmetic = CreateMutexSimple( MutexNameArithmetic );
+		if (MutexHandleArithmetic == NULL) 
+		{
+			printf("CreateMutex error: %d\n", GetLastError());
+		}
+		MutexHandleGeometric  = CreateMutexSimple( MutexNameGeometric );
+		if (MutexHandleGeometric == NULL) 
+		{
+			printf("CreateMutex error: %d\n", GetLastError());
+		}
+		MutexHandleDiffrence  = CreateMutexSimple( MutexNameDiffrence );
+		if (MutexHandleDiffrence == NULL) 
+		{
+			printf("CreateMutex error: %d\n", GetLastError());
+		}
+
+		for (ThreadInd=0;ThreadInd<inputParams->NumOfWorkers;ThreadInd++)
+		{
+			threadParams[ThreadInd].TopStatus   = topStatus;
+			threadParams[ThreadInd].InputParams	= inputParams;
+			threadParams[ThreadInd].SeriesData	= seriesDataArray;
+			threadParams[ThreadInd].files		= files;
+			threadHandles[ThreadInd] = CreateThreadSimple(
+				(LPTHREAD_START_ROUTINE)ThreadProgresion,
+				(LPVOID) &(threadParams[ThreadInd]),
+				NULL); 
+
+			if ( threadHandles[ThreadInd] == NULL )
+			{
+				printf("Failed to create Thread. Exiting program.\n");
+				break;
+			}
+		}
+
+		/* Wait for all threads to end: */
+		waitRes = WaitForMultipleObjects(
+			inputParams->NumOfWorkers,
+			threadHandles,
+			TRUE,       /* wait until all threads finish */
+			INFINITE);
+
+		if ( waitRes == WAIT_FAILED )
+		{ 
+			printf("Waiting for threads failed. Ending program.\n"); 
+			exit(1);
 		}
 	}
-
-	/* Wait for all threads to end: */
-	waitRes = WaitForMultipleObjects(
-		inputParams->NumOfWorkers,
-		threadHandles,
-		TRUE,       /* wait until all threads finish */
-		INFINITE);
-
-	if ( waitRes == WAIT_FAILED )
-	{ 
-		printf("Waiting for threads failed. Ending program.\n"); 
-		exit(1);
-	}
-
 	//Sleep(10);
-
-	for (i = 0; i < inputParams->NumOfWorkers; i++)
+	__finally
 	{
-		GetExitCodeThread(threadHandles[i], &exitcode);
-		printf("Thread number %d returned exit code %d\n", i, exitcode);
-		CloseHandle(threadHandles[i]);
+		for (i = 0; i < inputParams->NumOfWorkers; i++)
+		{
+			GetExitCodeThread(threadHandles[i], &exitcode);
+			//printf("Thread number %d returned exit code %d\n", i, exitcode);
+			CloseHandle(threadHandles[i]);
+		}
+
+		CloseHandle(MutexHandleTop);
+		CloseHandle(MutexHandleArithmetic);
+		CloseHandle(MutexHandleGeometric);
+		CloseHandle(MutexHandleDiffrence);
 	}
-
-	CloseHandle(MutexHandleTop);
-	CloseHandle(MutexHandleArithmetic);
-	CloseHandle(MutexHandleGeometric);
-	CloseHandle(MutexHandleDiffrence);
-
 	return 0;
 }
 
