@@ -40,19 +40,19 @@ TopStatus* CreateTopStatus()
 	return topStatus;
 }
 
-int CalcArithmeticProgressionForItemI(int a1,int n, int d)
+float CalcArithmeticProgressionForItemI(float a1,int n, float d)
 {
-	return a1+(n-1)*d;
+	return (a1+ (float)(n-1)*d);
 }
 
-double CalcGeometricProgressionForItemI(int a1,int n,int q)
+float CalcGeometricProgressionForItemI(float a1,int n,float q)
 {
-	return a1*pow((double) q,(double) (n-1));
+	return a1*pow(q,(float) (n-1));
 }
 
-float CalaDifferenceProgressionForItemI(int a1,int n, int d, int q)
+float CalaDifferenceProgressionForItemI(float a1,int n, float d, float q)
 {
-	return (float) CalcGeometricProgressionForItemI(a1,n,q) - (float) CalcArithmeticProgressionForItemI(a1,n,d);
+	return CalcGeometricProgressionForItemI(a1,n,q) - CalcArithmeticProgressionForItemI(a1,n,d);
 }
 /**
 * CreateProcessSimple uses the win32 API to create a process that runs the
@@ -105,13 +105,13 @@ void CalculateSeries(SubSeqArray *subSeqArray, InputParams *inputParams, int sta
 		switch(type)
 		{
 		case ARITHMETIC :
-			subSeqArray[index].Value = (float) CalcArithmeticProgressionForItemI(inputParams->A1, n, inputParams->d);
+			subSeqArray[index].Value = CalcArithmeticProgressionForItemI(inputParams->A1, n, inputParams->d);
 			break;
 		case GEOMETRIC:
-			subSeqArray[index].Value = (float) CalcGeometricProgressionForItemI(inputParams->A1, n, inputParams->q);
+			subSeqArray[index].Value = CalcGeometricProgressionForItemI(inputParams->A1, n, inputParams->q);
 			break;
 		case DIFFERENCEPROG:
-			subSeqArray[index].Value = (float) CalaDifferenceProgressionForItemI(inputParams->A1, n, inputParams->d, inputParams->q);
+			subSeqArray[index].Value = CalaDifferenceProgressionForItemI(inputParams->A1, n, inputParams->d, inputParams->q);
 			break;
 		}
 		subSeqArray[index].ThreadNumber = GetCurrentThreadId();

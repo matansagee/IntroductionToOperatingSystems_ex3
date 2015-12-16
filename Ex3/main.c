@@ -21,9 +21,9 @@ void SetArgumentsInStructre(char** argv, InputParams* inputParams)
 	if (inputParams->FailurePeriod == NULL)
 		exit(1);
 	inputParams->FailurePeriod = strcpy(inputParams->FailurePeriod, argv[5]);
-	inputParams->A1 = atoi(argv[6]);
-	inputParams->d = atoi(argv[7]);
-	inputParams->q = atoi(argv[8]);
+	inputParams->A1 = atof(argv[6]);
+	inputParams->d =  atof(argv[7]);
+	inputParams->q =  atof(argv[8]);
 }
 
 void CreateFiles(FILE **files)
@@ -48,33 +48,23 @@ int CloseFiles(FILE **files)
 }
 int main(int argc, char* argv[])
 {
-	SYSTEMTIME systemTime;
 	InputParams *inputParams = (InputParams*) malloc(sizeof(inputParams));
+
 	FILE **files = (FILE**) malloc(sizeof(FILE**) * 3);
+
 	if (inputParams == NULL || argc != 9)
 		return 1;
-	GetSystemTime(&systemTime);
-
-	printf("%d - Begin - %02d:%02d:%02d.%03d\n",
-				systemTime.wHour,
-				systemTime.wMinute,
-				systemTime.wSecond,
-				systemTime.wMilliseconds);
 
 	SetArgumentsInStructre(argv, inputParams);
 
 	CreateFiles(files);
 
-	CreateThreads(inputParams,files);
-
-	GetSystemTime(&systemTime);
-
-	CloseFiles(files);
-
-	printf("%d - End - %02d:%02d:%02d.%03d\n",
-			systemTime.wHour,
-			systemTime.wMinute,
-			systemTime.wSecond,
-			systemTime.wMilliseconds);
-	while (1);
+	__try
+		{
+			CreateThreads(inputParams,files);
+	}
+	__finally
+		{
+		CloseFiles(files);
+	}
 }

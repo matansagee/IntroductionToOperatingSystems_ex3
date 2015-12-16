@@ -37,9 +37,9 @@ typedef struct InputParams
 	int JobSize;
 	int SubSeqLength;
 	string FailurePeriod;
-	int A1;
-	int d;
-	int q;
+	float A1;
+	float d;
+	float q;
 
 }InputParams;
 
