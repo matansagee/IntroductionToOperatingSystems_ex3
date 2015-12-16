@@ -20,6 +20,39 @@ HANDLE MutexHandleArithmetic;
 HANDLE MutexHandleGeometric ;
 HANDLE MutexHandleDiffrence ;
 
+/*Function Decleration */
+
+//Create Structs Function
+TopStatus* CreateTopStatus();
+SeriesData* CreateSeriesDataArray (InputParams *inputParams);
+//Create Handlers Function
+HANDLE CreateMutexSimple( LPCTSTR MutexName );
+HANDLE CreateThreadSimple(  LPTHREAD_START_ROUTINE StartAddress,LPVOID ParameterPtr,LPDWORD ThreadIdPtr );
+BOOL CreateProcessSimple(LPTSTR CommandLine, PROCESS_INFORMATION *ProcessInfoPtr);
+//Artithmetic Function
+float CalcArithmeticProgressionForItemI(float a1,int n, float d);
+float CalcGeometricProgressionForItemI(float a1,int n,float q);
+float CalaDifferenceProgressionForItemI(float a1,int n, float d, float q);
+//Building and Cleaning Threads
+void StartCleaningOperation(int N,int seriesNextJob, int subSeqArrayNumber, SubSeqArray *subSeqArray,int subSeqLength,FILE *file);
+void StartBuildingOperation(SubSeqArray *subSeqArray, InputParams *inputParams, int startIndexInN, int startIndexInSubSequenceArray, SeriesType type);
+//Main Function
+int CreateThreads(InputParams *inputParams,FILE **files);
+//Thread Function
+DWORD ThreadProgresion( LPVOID Argument );
+//Mutex Functions
+DWORD RequestCleanerInTopStatus(ThreadParams *threadParams);
+DWORD UpdateSeriesParams ( ThreadParams *threadParams );
+DWORD GetNextJob(BOOL *stop, ThreadParams *threadParams );
+DWORD UpdateTopStatus(ThreadParams *threadParams);
+//MainLogic Function
+SeriesType GetSeriesTypeAndUpdateThreadParams(ThreadParams *threadParams);
+//Logic Support function
+int WorkOnSeries ( ThreadParams *threadParams );
+int UpdateThreadParamsByLogic(ThreadParams *threadParams);
+
+/*Function Implentation */
+
 TopStatus* CreateTopStatus()
 {
 	TopStatus *topStatus = (TopStatus*) malloc(sizeof(*topStatus));
@@ -91,7 +124,7 @@ BOOL CreateProcessSimple(LPTSTR CommandLine, PROCESS_INFORMATION *ProcessInfoPtr
 		);
 }
 
-void CalculateSeries(SubSeqArray *subSeqArray, InputParams *inputParams, int startIndexInN, int startIndexInSubSequenceArray, SeriesType type)
+void StartBuildingOperation(SubSeqArray *subSeqArray, InputParams *inputParams, int startIndexInN, int startIndexInSubSequenceArray, SeriesType type)
 {
 	int i;
 	int index;
@@ -120,7 +153,7 @@ void CalculateSeries(SubSeqArray *subSeqArray, InputParams *inputParams, int sta
 }
 
 
-void StartCleaningThread(int N,int seriesNextJob, int subSeqArrayNumber, SubSeqArray *subSeqArray,int subSeqLength,FILE *file)
+void StartCleaningOperation(int N,int seriesNextJob, int subSeqArrayNumber, SubSeqArray *subSeqArray,int subSeqLength,FILE *file)
 {
 	int j = 0;
 	int index;
@@ -151,9 +184,7 @@ void StartCleaningThread(int N,int seriesNextJob, int subSeqArrayNumber, SubSeqA
 }
 
 
-HANDLE CreateThreadSimple(  LPTHREAD_START_ROUTINE StartAddress, 
-	LPVOID ParameterPtr, 
-	LPDWORD ThreadIdPtr )
+HANDLE CreateThreadSimple(  LPTHREAD_START_ROUTINE StartAddress,LPVOID ParameterPtr,LPDWORD ThreadIdPtr )
 {
 	return CreateThread(
 		NULL,            /*  default security attributes */
@@ -269,7 +300,7 @@ DWORD UpdateSeriesParams ( ThreadParams *threadParams )
 	}
 	return ISP_SUCCESS;
 }
-int UpdateTopStatus(ThreadParams *threadParams)
+DWORD UpdateTopStatus(ThreadParams *threadParams)
 {
 	DWORD WaitRes;
 	SeriesType currentJobs;
@@ -319,14 +350,14 @@ int WorkOnSeries ( ThreadParams *threadParams )
 	{
 	case BUILDER: 
 		{
-			CalculateSeries(threadParams->SeriesData[seriesDataInd].SubSeqArray, threadParams->InputParams, startIndexInN, startIndexInSubSequenceArray, threadParams->SeriesNextJob);
+			StartBuildingOperation(threadParams->SeriesData[seriesDataInd].SubSeqArray, threadParams->InputParams, startIndexInN, startIndexInSubSequenceArray, threadParams->SeriesNextJob);
 			UpdateSeriesParams(threadParams);
 		}
 		break;
 	case CLEANER: 
 		{
 			//printf("%d,I'm cleaner\n",GetCurrentThreadId()); 
-			StartCleaningThread(threadParams->InputParams->N,
+			StartCleaningOperation(threadParams->InputParams->N,
 				threadParams->SeriesNextJob,subSeqArrayNumber, 
 				threadParams->SeriesData[seriesDataInd].SubSeqArray,
 				threadParams->InputParams->SubSeqLength,
@@ -579,7 +610,6 @@ int CreateThreads(InputParams *inputParams,FILE **files)
 			}
 		}
 
-		/* Wait for all threads to end: */
 		waitRes = WaitForMultipleObjects(
 			inputParams->NumOfWorkers,
 			threadHandles,
@@ -592,7 +622,6 @@ int CreateThreads(InputParams *inputParams,FILE **files)
 			exit(1);
 		}
 	}
-	//Sleep(10);
 	__finally
 	{
 		for (i = 0; i < inputParams->NumOfWorkers; i++)
