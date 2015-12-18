@@ -46,9 +46,10 @@ int CloseFiles(FILE **files)
 	fclose(files[0]);
 	fclose(files[1]);
 	fclose(files[2]);
-	return 1;
+	return 0;
 
 }
+
 int main(int argc, char* argv[])
 {
 	InputParams *inputParams = (InputParams*) malloc(sizeof(inputParams));
@@ -70,4 +71,6 @@ int main(int argc, char* argv[])
 		{
 		CloseFiles(files);
 	}
+	free (inputParams);
+	return 0;
 }
