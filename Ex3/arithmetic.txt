@@ -1,4 +1,0 @@
-Index #1 = 1.000000, calculated by thread 6976 @ 19:33:13.623
-Index #2 = 1.100000, calculated by thread 6976 @ 19:33:13.623
-Index #3 = 1.200000, calculated by thread 6976 @ 19:33:13.623
-Index #4 = 1.300000, calculated by thread 6976 @ 19:33:13.623

@@ -20,7 +20,9 @@ HANDLE MutexHandleArithmetic;
 HANDLE MutexHandleGeometric ;
 HANDLE MutexHandleDiffrence ;
 
-/*Function Decleration */
+//---------------------------------------------------------------------------
+// Function Decleration
+//---------------------------------------------------------------------------
 
 //Create Structs Function
 TopStatus* CreateTopStatus();
@@ -51,7 +53,9 @@ SeriesType GetSeriesTypeAndUpdateThreadParams(ThreadParams *threadParams);
 int WorkOnSeries ( ThreadParams *threadParams );
 int UpdateThreadParamsByLogic(ThreadParams *threadParams);
 
-/*Function Implentation */
+//---------------------------------------------------------------------------
+// Function Implentation
+//---------------------------------------------------------------------------
 
 TopStatus* CreateTopStatus()
 {
@@ -124,6 +128,12 @@ BOOL CreateProcessSimple(LPTSTR CommandLine, PROCESS_INFORMATION *ProcessInfoPtr
 		);
 }
 
+//------------------------------------------------------------------------------------
+// StartBuildingOperation - in case of "builder" thread - calculate the series by kind,
+//                          according to decision that has been taken erlier
+//------------------------------------------------------------------------------------
+
+
 void StartBuildingOperation(SubSeqArray *subSeqArray, InputParams *inputParams, int startIndexInN, int startIndexInSubSequenceArray, SeriesType type)
 {
 	int i;
@@ -139,12 +149,15 @@ void StartBuildingOperation(SubSeqArray *subSeqArray, InputParams *inputParams, 
 		{
 		case ARITHMETIC :
 			subSeqArray[index].Value = CalcArithmeticProgressionForItemI(inputParams->A1, n, inputParams->d);
+			printf("a%d of ARITHNETIC is %f\n",n,subSeqArray[index].Value);
 			break;
 		case GEOMETRIC:
 			subSeqArray[index].Value = CalcGeometricProgressionForItemI(inputParams->A1, n, inputParams->q);
+			printf("a%d of GEOMETRIC is %f\n",n,subSeqArray[index].Value);
 			break;
 		case DIFFERENCEPROG:
 			subSeqArray[index].Value = CalaDifferenceProgressionForItemI(inputParams->A1, n, inputParams->d, inputParams->q);
+			printf("a%d of DIFFRENCE is %f\n",n,subSeqArray[index].Value);
 			break;
 		}
 		subSeqArray[index].ThreadNumber = GetCurrentThreadId();
@@ -152,6 +165,9 @@ void StartBuildingOperation(SubSeqArray *subSeqArray, InputParams *inputParams, 
 	}
 }
 
+//----------------------------------------------------------------------------------------
+// StartCleaningOperation - "cleaning" thread function - write values from sub_seq to file
+//----------------------------------------------------------------------------------------
 
 void StartCleaningOperation(int N,int seriesNextJob, int subSeqArrayNumber, SubSeqArray *subSeqArray,int subSeqLength,FILE *file)
 {
@@ -160,7 +176,7 @@ void StartCleaningOperation(int N,int seriesNextJob, int subSeqArrayNumber, SubS
 	for (j = 0; j < subSeqLength; j++)
 	{
 		index = subSeqArrayNumber*subSeqLength + j +1;
-		/*printf("%d - Index #%d = %f, calculated by thread %d @ %02d:%02d:%02d.%03d\n", 
+		printf("%d - Index #%d = %f, calculated by thread %d @ %02d:%02d:%02d.%03d\n", 
 			seriesNextJob,
 			index, 
 			subSeqArray[j].Value, 
@@ -168,7 +184,7 @@ void StartCleaningOperation(int N,int seriesNextJob, int subSeqArrayNumber, SubS
 			subSeqArray[j].lpSystemTime.wHour,
 			subSeqArray[j].lpSystemTime.wMinute,
 			subSeqArray[j].lpSystemTime.wSecond,
-			subSeqArray[j].lpSystemTime.wMilliseconds);*/
+			subSeqArray[j].lpSystemTime.wMilliseconds);
 		fprintf(file,"Index #%d = %f, calculated by thread %d @ %02d:%02d:%02d.%03d\n", 
 			index, 
 			subSeqArray[j].Value, 
@@ -204,6 +220,11 @@ HANDLE CreateMutexSimple( LPCTSTR MutexName )
 		MutexName);             
 }
 
+//----------------------------------------------------------------------------------------
+// RequestCleanerInTopStatus - the function asking to get to highest database TopStatus and
+//                             write cleaning request (using mutex)
+//----------------------------------------------------------------------------------------
+
 DWORD RequestCleanerInTopStatus(ThreadParams *threadParams)
 {
 	DWORD WaitRes;
@@ -215,7 +236,7 @@ DWORD RequestCleanerInTopStatus(ThreadParams *threadParams)
 		{
 		case WAIT_OBJECT_0: 
 			{
-				//printf("%d is holding mutex %d\n",GetCurrentThreadId(),MutexHandleTop);
+				printf("%d is holding mutex %d\n",GetCurrentThreadId(),MutexHandleTop);
 				switch(threadParams->SeriesNextJob)
 				{
 				case ARITHMETIC:		threadParams->TopStatus->ArithmeticNeedClean= TRUE; break;
@@ -233,10 +254,15 @@ DWORD RequestCleanerInTopStatus(ThreadParams *threadParams)
 		if ( !ReleaseMutex(MutexHandleTop)) {
 			return ( ISP_MUTEX_RELEASE_FAILED );
 		} 
-		//printf("%d is releasing mutex %d\n",GetCurrentThreadId(),MutexHandleTop);
+		printf("%d is releasing mutex %d\n",GetCurrentThreadId(),MutexHandleTop);
 		return ( ISP_SUCCESS );
 	}
 }
+
+//----------------------------------------------------------------------------------------
+// UpdateThreadParamsByLogic - after job_size job is done - update lower database of the 
+//                             series that job is done and if any cleaning requierd
+//----------------------------------------------------------------------------------------
 
 int UpdateThreadParamsByLogic(ThreadParams *threadParams)
 {
@@ -245,7 +271,7 @@ int UpdateThreadParamsByLogic(ThreadParams *threadParams)
 	int N = threadParams->InputParams->N;
 	int maxWorkersOnSeries = (subSeqLength / jobSize);
 
-	//printf("%d, I'm builder and i finished job %d\n",GetCurrentThreadId(),threadParams->SeriesData[(int)(threadParams->SeriesNextJob)].NumOfSubJobsDone); 
+	printf("%d, I'm builder and i finished job %d on series %d\n",GetCurrentThreadId(),threadParams->SeriesData[(int)(threadParams->SeriesNextJob)].NumOfSubJobsDone,threadParams->SeriesNextJob); 
 	// update series
 	threadParams->SeriesData[(int)(threadParams->SeriesNextJob)].NumOfSubJobsDone++;
 	if (threadParams->SeriesData[threadParams->SeriesNextJob].NumOfSubJobsDone == maxWorkersOnSeries)
@@ -254,13 +280,19 @@ int UpdateThreadParamsByLogic(ThreadParams *threadParams)
 		threadParams->SeriesData[threadParams->SeriesNextJob].NumOfSubJobsDone = 0;
 	}
 	//handle N % SubSeqLength != 0
-	if (threadParams->n + 1 == N)
+	if ((threadParams->n) + jobSize == N)
 	{
 		RequestCleanerInTopStatus(threadParams);
 		threadParams->SeriesData[threadParams->SeriesNextJob].NumOfSubJobsDone = 0;
 	}
 
 }
+
+//----------------------------------------------------------------------------------------
+// UpdateSeriesParams - ask for mutex inorder to update parameters of series, then call
+//                      UpdateThreadParamsByLogic
+//----------------------------------------------------------------------------------------
+
 DWORD UpdateSeriesParams ( ThreadParams *threadParams )
 {
 	HANDLE handle;
@@ -280,7 +312,7 @@ DWORD UpdateSeriesParams ( ThreadParams *threadParams )
 			// The thread got ownership of the mutex
 		case WAIT_OBJECT_0: 
 			{
-				//printf("%d is holding mutex %d\n",GetCurrentThreadId(),threadParams->SeriesNextJob);
+				printf("%d is holding mutex %d\n",GetCurrentThreadId(),threadParams->SeriesNextJob);
 				exitCode = UpdateThreadParamsByLogic(threadParams);
 				if (exitCode != ISP_SUCCESS)
 					return exitCode;
@@ -293,13 +325,18 @@ DWORD UpdateSeriesParams ( ThreadParams *threadParams )
 	}
 	__finally
 	{ 
-		//printf("%d is releasing mutex %d\n",GetCurrentThreadId(),threadParams->SeriesNextJob);
+		printf("%d is releasing mutex %d\n",GetCurrentThreadId(),threadParams->SeriesNextJob);
 		if ( !ReleaseMutex(handle)) {
 			return ( ISP_MUTEX_RELEASE_FAILED );
 		} 
 	}
 	return ISP_SUCCESS;
 }
+
+//----------------------------------------------------------------------------------------
+// UpdateTopStatus - update highes database after cleaning job (through mutex)
+//----------------------------------------------------------------------------------------
+
 DWORD UpdateTopStatus(ThreadParams *threadParams)
 {
 	DWORD WaitRes;
@@ -311,7 +348,7 @@ DWORD UpdateTopStatus(ThreadParams *threadParams)
 		{
 		case WAIT_OBJECT_0: 
 			{
-				//printf("%d is holding mutex %d\n",GetCurrentThreadId(),MutexHandleTop);
+				printf("%d is holding mutex %d\n",GetCurrentThreadId(),MutexHandleTop);
 				switch(threadParams->SeriesNextJob)
 				{
 				case ARITHMETIC:		threadParams->TopStatus->ArithmeticCleanOnProgress= FALSE; break;
@@ -329,10 +366,15 @@ DWORD UpdateTopStatus(ThreadParams *threadParams)
 			return ( ISP_MUTEX_RELEASE_FAILED );
 		} 
 
-		//printf("%d is releasing mutex %d\n",GetCurrentThreadId(),MutexHandleTop);
+		printf("%d is releasing mutex %d\n",GetCurrentThreadId(),MutexHandleTop);
 		return ( ISP_SUCCESS );
 	}
 }
+
+//----------------------------------------------------------------------------------------
+// WorkOnSeries - according to erlier decision (thread type and series) call job function
+//----------------------------------------------------------------------------------------
+
 int WorkOnSeries ( ThreadParams *threadParams )
 {
 	int startIndexInN = threadParams->n;
@@ -356,7 +398,7 @@ int WorkOnSeries ( ThreadParams *threadParams )
 		break;
 	case CLEANER: 
 		{
-			//printf("%d,I'm cleaner\n",GetCurrentThreadId()); 
+			printf("%d,I'm cleaner of series %d\n",GetCurrentThreadId(), threadParams->SeriesNextJob); 
 			StartCleaningOperation(threadParams->InputParams->N,
 				threadParams->SeriesNextJob,subSeqArrayNumber, 
 				threadParams->SeriesData[seriesDataInd].SubSeqArray,
@@ -368,6 +410,13 @@ int WorkOnSeries ( ThreadParams *threadParams )
 	}
 	return ISP_SUCCESS;
 }
+
+//----------------------------------------------------------------------------------------
+// GetSeriesTypeAndUpdateThreadParams - the "main maneger" based on highest database - 
+//                                      "TopStatus", first priority to send thread if there
+//                                      any cleaning requests, second priority - decide on
+//                                      which series to work on
+//----------------------------------------------------------------------------------------
 
 
 SeriesType GetSeriesTypeAndUpdateThreadParams(ThreadParams *threadParams)
@@ -463,9 +512,22 @@ SeriesType GetSeriesTypeAndUpdateThreadParams(ThreadParams *threadParams)
 		}
 		break;
 	}
+
+	if ( (threadParams->TopStatus->DiffrenceJobsCounter == totalJobsInSeries)
+		 && (threadParams->TopStatus->GeometriceticJobsCounter == totalJobsInSeries)
+		 && (threadParams->TopStatus->ArithmeticJobsCounter == totalJobsInSeries)
+		 && (candidate == DONOTHING) )
+		 candidate = THREADDONE;
+		printf("%d got a job on %d, the updated n is %d \n",GetCurrentThreadId(), candidate,threadParams->n); 
 	return candidate;
+
+
 }
 
+//----------------------------------------------------------------------------------------
+// GetNextJob - ask for mutex inorder to get to highest database - TopStatus and then 
+//                                      call GetSeriesTypeAndUpdateThreadParams
+//----------------------------------------------------------------------------------------
 
 DWORD GetNextJob(BOOL *stop, ThreadParams *threadParams )
 {
@@ -479,14 +541,15 @@ DWORD GetNextJob(BOOL *stop, ThreadParams *threadParams )
 			// The thread got ownership of the mutex
 		case WAIT_OBJECT_0: 
 			{
-				//printf("%d is holding mutex %d\n",GetCurrentThreadId(),MutexHandleTop);
+				printf("%d is holding mutex %d\n",GetCurrentThreadId(),MutexHandleTop);
 				currentJobs = GetSeriesTypeAndUpdateThreadParams(threadParams);
-				if (currentJobs == DONOTHING)
+				if (currentJobs == THREADDONE)
 				{
 					threadParams->SeriesNextJob = currentJobs;
 					*stop = TRUE; /* handle last letter, then exit loop */
 					break;
 				}
+			
 				threadParams->SeriesNextJob = currentJobs;
 			} 
 			break; 
@@ -503,11 +566,15 @@ DWORD GetNextJob(BOOL *stop, ThreadParams *threadParams )
 			// Handle error.
 		} 
 
-		//printf("%d is releasing mutex %d\n",GetCurrentThreadId(),MutexHandleTop);
+		printf("%d is releasing mutex %d\n",GetCurrentThreadId(),MutexHandleTop);
 		return ( ISP_SUCCESS );
 	}
 
 }
+
+//----------------------------------------------------------------------------------------
+// ThreadProgresion - main thread function 
+//----------------------------------------------------------------------------------------
 
 DWORD ThreadProgresion( LPVOID Argument )
 {
@@ -524,11 +591,14 @@ DWORD ThreadProgresion( LPVOID Argument )
 		{
 			return ( ExitCode );
 		}
-		if (threadParams->SeriesNextJob == DONOTHING)
+		if (threadParams->SeriesNextJob == THREADDONE)
 		{
 			return ISP_SUCCESS;
 		}
-		WorkOnSeries(threadParams);
+		if (threadParams->SeriesNextJob != DONOTHING)
+		{
+        	WorkOnSeries(threadParams);
+		}
 	} // End of while
 	//printf("thread %d Job is - %d\n",localTreadID,ExitCode);
 

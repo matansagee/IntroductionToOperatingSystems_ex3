@@ -11,7 +11,7 @@
 #include <string.h>
 #include <tchar.h>
 
-typedef enum {ARITHMETIC,GEOMETRIC,DIFFERENCEPROG, DONOTHING} SeriesType;
+typedef enum {ARITHMETIC,GEOMETRIC,DIFFERENCEPROG, DONOTHING , THREADDONE} SeriesType;
 typedef enum {CLEANER, BUILDER} WorkerType;
 
 typedef char* string; 

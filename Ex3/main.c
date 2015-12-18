@@ -10,6 +10,9 @@
 #include <math.h>
 #include <tchar.h>
 
+//---------------------------------------------------------------------------
+// Main.c includes functions of handling input parameters and file creations
+//---------------------------------------------------------------------------
 
 void SetArgumentsInStructre(char** argv, InputParams* inputParams)
 {
